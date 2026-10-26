@@ -135,41 +135,173 @@ sucursales = {"Oeste": ["Merlo", "Castelar", "Ramos Mejía"],
 # FUNCIÓN PARA BUSCAR USUARIO POR DNI
 def buscarUsuarioPorDni(nroBuscado):
   print("\nBuscando usuario...")
+  try:
+    dni_int = int(nroBuscado)
+  except ValueError:
+    return None
+  for usuario in usuarios:
+    if usuario['Dni'] == dni_int:
+      return usuario
+  return None
 
 # FUNCIÓN PARA CONSULTAR EL SALDO
 def consultarSaldo(usuario):
   print("\nConsultando Saldo...")
+  print(f"\n--- INFORMACIÓN DE LA CUENTA ---")
+  print(f"Titular: {usuario['Nombre']} {usuario['Apellido']}")
+  print(f"Cuenta N°: {usuario['Cuenta']}")
+  print(f"Saldo disponible: ${usuario['Saldo']}")
 
 # FUNCIÓN PARA CONSULTAR FACTURAS
 def consultarFacturas(usuario):
   print("\nConsultando Facturas...")
+  facturas = usuario['FacturasAdeudadas']
+  print(f"\n--- FACTURAS ADEUDADAS DE {usuario['Nombre'].upper()} {usuario['Apellido'].upper()} ---")
+  if len(facturas) == 0:
+    print("No posees facturas adeudadas en este momento.")
+  else:
+    total = 0
+    for i, factura in enumerate(facturas, 1):
+      print(f"  {i}. {factura['Servicio']} | Vencimiento: {factura['Vencimiento']} | Valor: ${factura['Valor']}")
+      total += factura['Valor']
+    print(f"Total adeudado: ${total}")
 
 # FUNCIÓN PARA PAGAR FACTURAS
 def pagarFacturas(usuario):
   print("\nPagando Facturas...")
-# LAS FACTURAS SOLO SE PAGAN SI TIENES SALDO SUFICIENTE
-# SI LAS FACTURAS SE PAGAN, SE BORRAN DEL DICCIONARIO
+  # LAS FACTURAS SOLO SE PAGAN SI TIENES SALDO SUFICIENTE
+  # SI LAS FACTURAS SE PAGAN, SE BORRAN DEL DICCIONARIO
+  facturas = usuario['FacturasAdeudadas']
+  if len(facturas) == 0:
+    print("No tienes facturas pendientes de pago.")
+    return
+
+  print(f"\nSaldo actual en cuenta: ${usuario['Saldo']}")
+  print("Facturas pendientes:")
+  total = 0
+  for i, factura in enumerate(facturas, 1):
+    print(f"  {i}. {factura['Servicio']} | Vencimiento: {factura['Vencimiento']} | Valor: ${factura['Valor']}")
+    total += factura['Valor']
+  print(f"Monto total: ${total}")
+
+  print("\nOpciones de pago:")
+  print("  1. Pagar una factura individual")
+  print("  2. Pagar todas las facturas")
+  print("  0. Cancelar")
+  opcion_pago = input("Seleccione una opción: ").strip()
+
+  if opcion_pago == "1":
+    seleccion = input(f"Ingrese el número de la factura a pagar (1-{len(facturas)}): ").strip()
+    if seleccion.isdigit() and 1 <= int(seleccion) <= len(facturas):
+      indice = int(seleccion) - 1
+      factura = facturas[indice]
+      if usuario['Saldo'] >= factura['Valor']:
+        usuario['Saldo'] -= factura['Valor']
+        factura_pagada = facturas.pop(indice)
+        print(f"\n✅ ¡Pago realizado con éxito!")
+        print(f"Se abonó el servicio de {factura_pagada['Servicio']} por ${factura_pagada['Valor']}.")
+        print(f"Saldo restante: ${usuario['Saldo']}")
+      else:
+        print(f"\n❌ Saldo insuficiente. Saldo disponible: ${usuario['Saldo']} | Monto de la factura: ${factura['Valor']}.")
+    else:
+      print("Número de factura no válido.")
+  elif opcion_pago == "2":
+    if usuario['Saldo'] >= total:
+      usuario['Saldo'] -= total
+      facturas.clear()
+      print(f"\n✅ ¡Pago realizado con éxito!")
+      print(f"Se cancelaron todas las facturas por un total de ${total}.")
+      print(f"Saldo restante: ${usuario['Saldo']}")
+    else:
+      print(f"\n❌ Saldo insuficiente para pagar todas las facturas. Saldo disponible: ${usuario['Saldo']} | Total necesario: ${total}.")
+  elif opcion_pago == "0":
+    print("Operación cancelada.")
+  else:
+    print("Opción no válida.")
 
 # FUNCIÓN PARA CONSULTAR SUCURSALES
 def consultarSucursales():
   print("\nAccediendo a datos de sucursales...")
+  print("\n--- SUCURSALES DISPONIBLES ---")
+  for zona, lista in sucursales.items():
+    print(f"\nZona {zona}:")
+    for suc in lista:
+      print(f"  • {suc}")
 
 # FUNCIÓN PARA SACAR TURNO
 def sacarTurno():
   print("\nObteniendo horarios disponibles...")
+  print("\n--- SOLICITAR UN TURNO ---")
+  zonas = list(sucursales.keys())
+  print("Zonas disponibles:")
+  for i, zona in enumerate(zonas, 1):
+    print(f"  {i}. Zona {zona}")
+  
+  opc_zona = input("\nSeleccione una zona (1-4): ").strip()
+  if not (opc_zona.isdigit() and 1 <= int(opc_zona) <= len(zonas)):
+    print("Zona no válida. Cancelando solicitud de turno.")
+    return
+
+  zona_elegida = zonas[int(opc_zona) - 1]
+  sucursales_zona = sucursales[zona_elegida]
+
+  print(f"\nSucursales en Zona {zona_elegida}:")
+  for i, suc in enumerate(sucursales_zona, 1):
+    print(f"  {i}. {suc}")
+
+  opc_suc = input(f"\nSeleccione una sucursal (1-{len(sucursales_zona)}): ").strip()
+  if not (opc_suc.isdigit() and 1 <= int(opc_suc) <= len(sucursales_zona)):
+    print("Sucursal no válida. Cancelando solicitud de turno.")
+    return
+
+  sucursal_elegida = sucursales_zona[int(opc_suc) - 1]
+
+  horarios_posibles = ["09:00", "10:30", "11:45", "13:00", "14:30", "16:00"]
+  hoy = datetime.date.today()
+  turnos_disponibles = []
+
+  for i in range(1, 4):
+    dia = hoy + datetime.timedelta(days=i)
+    hora = random.choice(horarios_posibles)
+    turnos_disponibles.append((dia, hora))
+
+  print(f"\nTurnos disponibles para la sucursal {sucursal_elegida}:")
+  for i, (dia, hora) in enumerate(turnos_disponibles, 1):
+    print(f"  {i}. Fecha: {dia.strftime('%d/%m/%Y')} | Horario: {hora} hs")
+
+  opc_turno = input("\nSeleccione el turno deseado (1-3): ").strip()
+  if opc_turno.isdigit() and 1 <= int(opc_turno) <= len(turnos_disponibles):
+    dia_sel, hora_sel = turnos_disponibles[int(opc_turno) - 1]
+    nro_turno = random.randint(1000, 9999)
+    print("\n✅ ¡Turno confirmado!")
+    print(f"  • Sucursal: {sucursal_elegida} (Zona {zona_elegida})")
+    print(f"  • Fecha: {dia_sel.strftime('%d/%m/%Y')}")
+    print(f"  • Horario: {hora_sel} hs")
+    print(f"  • Código de reserva: #{nro_turno}")
+  else:
+    print("Opción inválida. No se reservó ningún turno.")
 
 
 
 # --- INTERACCIONES DEL CHATBOT ---
 
 # MENSAJE INICIAL
-  print("\n**¡Hola! Soy Telmo, tu asistente virtual**")
+print("\n**¡Hola! Soy Telmo, tu asistente virtual**")
 
 # SOLICITAR DNI CON input() Y ALMACENARLO EN UNA VARIABLE
-
 # BUSCAR USUARIO SEGÚN SU DNI Y ALMACENARLO EN UNA VARIABLE LLAMADA "usuarioActual"
+usuarioActual = None
+while usuarioActual is None:
+  dni_ingresado = input("\nIngrese su número de DNI para ingresar: ").strip()
+  if dni_ingresado.isdigit():
+    usuarioActual = buscarUsuarioPorDni(dni_ingresado)
+    if usuarioActual is None:
+      print("No se encontró ningún usuario con ese DNI. Intente nuevamente.")
+  else:
+    print("Por favor, ingrese un número de DNI válido (solo números).")
 
 # SALUDAR AL "usuarioActual" SEGÚN SU NOMBRE
+print(f"\n¡Bienvenido/a {usuarioActual['Nombre']} {usuarioActual['Apellido']}!")
 
 
 # BUCLE DEL CHATBOT - PERMITIR ELEGIR OPCIONES HASTA QUE DESEE TERMINAR
@@ -184,15 +316,31 @@ while continuar == "SI":
   3. Pagar facturas
   4. Consultar sucursales
   5. Solicitar un turno
-  >>>>>>>>>>>>: """)
+  >>>>>>>>>>>>: """).strip()
 
-# VERIFICAR QUE LA OPCIÓN INGRESADA SEA CORRECTA
+  # VERIFICAR QUE LA OPCIÓN INGRESADA SEA CORRECTA
+  # USAR UN CONDICIONAL PARA EJECUTAR LA FUNCIÓN QUE CORRESPONDA SEGÚN LA ELECCIÓN
+  if opcion == "1":
+    consultarSaldo(usuarioActual)
+  elif opcion == "2":
+    consultarFacturas(usuarioActual)
+  elif opcion == "3":
+    pagarFacturas(usuarioActual)
+  elif opcion == "4":
+    consultarSucursales()
+  elif opcion == "5":
+    sacarTurno()
+  else:
+    print("\nOpción no válida. Por favor, ingrese un número del 1 al 5.")
 
-# USAR UN CONDICIONAL PARA EJECUTAR LA FUNCIÓN QUE CORRESPONDA SEGÚN LA ELECCIÓN
-
-# PREGUNTAR SI DESEA CONTINUAR
-  continuar = "NO"
+  # PREGUNTAR SI DESEA CONTINUAR
+  respuesta = input("\n¿Desea realizar otra operación? (SI/NO): ").strip().upper()
+  if respuesta == "SI":
+    continuar = "SI"
+  else:
+    continuar = "NO"
 
 
 # CUANDO TERMINA EL BUCLE, SE MUESTRA UN MENSAJE DE DESPEDIDA
-  print("\n**¡Gracias por utilizar el servicio de autogestión!**")
+print("\n**¡Gracias por utilizar el servicio de autogestión!**")
+
